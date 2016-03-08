@@ -5,6 +5,8 @@ date: "9/29/2015"
 output: html_document
 ---
 
+**Income vs. Education Exploration**
+
 Income inequality in the United states is more extreme now than at any time since the Great Depression, according to Fortune magazine. It is not only significant, it is on the rise. Many believe higher education can be a solution to rising income inequality. A college education can give students necessary skills to succeed in the workplace and land a better paying job. However, different types of higher education institutions--public, private non-profit, and private for-profit universities--have a varying amount of success. Our goal in this interpretation is to analyze the extent to which the type of school that one chooses affects his or her earning potential. Additionally, we want to find out whether the socioeconomic background students come from has an impact on how much money they make. 
 
 In short: What role does the type of higher education play in predicting future income, and does a student's family income impact that at all?
