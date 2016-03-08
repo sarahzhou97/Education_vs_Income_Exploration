@@ -1,0 +1,261 @@
+---
+title: "Income vs. Education Exploration"
+author: "StatSquad"
+date: "9/29/2015"
+output: html_document
+---
+
+Income inequality in the United states is more extreme now than at any time since the Great Depression, according to Fortune magazine. It is not only significant, it is on the rise. Many believe higher education can be a solution to rising income inequality. A college education can give students necessary skills to succeed in the workplace and land a better paying job. However, different types of higher education institutions--public, private non-profit, and private for-profit universities--have a varying amount of success. Our goal in this interpretation is to analyze the extent to which the type of school that one chooses affects his or her earning potential. Additionally, we want to find out whether the socioeconomic background students come from has an impact on how much money they make. 
+
+In short: What role does the type of higher education play in predicting future income, and does a student's family income impact that at all?
+
+#Preparation Steps
+
+1. Load necessary packages.  
+```{r}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+```
+2. Load dataset from College Scorecard.  
+```{r}
+scorecard <- read.csv("Most+Recent+Cohorts+(All+Data+Elements).csv", stringsAsFactors = FALSE) %>%
+  tbl_df
+```
+
+3. Mutate the variable representing the cost of a four year college from character to numeric. Additionally, many of the variables have unintuitive names. Therefore, we will mutate the variable names to allow for easier analysis and visualization. 
+```{r warning = FALSE}
+scorecard <- scorecard %>%
+  mutate(cost = as.numeric(COSTT4_A))
+```
+
+4. Mutate the variables for the percentage of students receiving some sort of financial aid from low income, middle income, and high income families to numeric variables. Then, give them more intuitive names.
+```{r warning = FALSE}
+scorecard <- scorecard %>%
+  mutate(high_income = as.numeric(INC_PCT_H2))%>%
+  mutate(middle_income = as.numeric(INC_PCT_M2))%>%
+  mutate(low_income = as.numeric(INC_PCT_LO))
+```
+
+5. Mutate the variables representing students' mean earnings to numeric. Additionally, give it a more intuitive name.  
+```{r}
+scorecard <- scorecard %>%
+  mutate(mean_earnings10 = as.numeric(mn_earn_wne_p10))
+```
+
+#What variables will be considered? 
+
+We will consider three main variables throughout this analysis, and a fourth cursory variable. 
+  
+1. The percentage of students given financial aid whose families come from low, middle, and high income brackets (INC_PCT_LO to low_income, INC_PCT_M2 to middle_income, INC_PCT_H2 to high_income).
+      low_income: $0 - $30,000
+      middle_income: $48,001 - $75,000
+      high_income: $110,001 and above
+Although not every possible income is represented in the above categories, we believe these income sublevels are representative enough of low income, middle income, and high income brackets to produce meaningful analysis. 
+  
+2. The mean earnings reported 10 years after enrollment (mn_earn_wne_p10 to mean_earnings10). This is the longest amount of time after enrollment for which data is recorded. Therefore, it will hopefully give the best idea of students' success after graduation. NOTE: because this variable has a right skewed distribution, we take the log of the variable when using it in graphs and models. 
+
+3. The type of school will also be considered in order to determine if the type of higher education impacts potential earnings. This variable is split into three major categories: public, private non-profit, and private for-profit. (CONTROL variable, with three levels, 1, 2, 3, respectively). Most four-year institutions in the United States have typically been non-profit.  However, for-profit institutions have been rapidly gaining in numbers in the past few decades.  Many online universities, such as DeVry University and the University of Pheonix, are for-profit institutions of higher learning. 
+
+4. The overall cost of the institution (COSTT4_A to cost). 
+
+#How are students' earnings 10 years after enrollment affected by the composition of low income, middle income, and high income families in schools?  
+
+1. We start by creating a plot with the percentage of low income students at the various schools as the explanatory variable for mean earnings 10 years after enrollment. 
+
+To account for the type of higher education, we colored the data by type of school. Here, 1 is a public school, 2 is a private non-profit school, and 3 is a private for-profit school.
+
+```{r}
+ggplot(data = scorecard, aes(x = low_income, y = log(mean_earnings10), color = factor(CONTROL)))+
+  geom_point(position = "jitter", alpha = 0.5)+
+  stat_smooth(method = 'lm')
+```
+
+The above plot shows us a couple things. Private for-profit colleges are clustered towards the right side of the graph, meaning that this type tends to have a higher percentage of students from low income families, along with a lower mean income as the percentage increases. In contrast, private non-profit colleges are clustered towards the left side of the graph, indicating that these institutions have a lower percentage of students from low income families than private for-profit colleges, but the mean income here drops also as the percentage of students from low income families increases. Public schools are fairly evenly distributed across the graph, meaning that they vary greatly in terms of their percentage of low income students in the student body. Additionally, as the percentage of students from low income families in each of these schools increases, the log of the mean earnings from those schools tends to decrease. Therefore, the bigger percentage of low-income students that a university has, the less its students are expected to make after they graduate. 
+
+Here is the linear model of the above plot for public schools:
+```{r}
+public <- scorecard %>% 
+  filter(CONTROL == 1)
+public_earnings <- lm(log(mean_earnings10) ~ low_income, data = public)
+exp(public_earnings$coefficients)
+summary(public_earnings)$r.squared
+```
+
+Here is the linear model for private non-profit schools:
+```{r}
+private_nonprofit<- scorecard %>% 
+  filter(CONTROL == 2)
+private_nonearnings <- lm(log(mean_earnings10) ~ low_income, data = private_nonprofit)
+exp(private_nonearnings$coefficients)
+summary(private_nonearnings)$r.squared
+```
+
+Here is the linear model for private for-profit schools:
+```{r}
+private_forprofit<- scorecard %>% 
+  filter(CONTROL == 3)
+privatefor_earnings <- lm(log(mean_earnings10) ~ low_income, data = private_forprofit)
+exp(privatefor_earnings$coefficients)
+summary(privatefor_earnings)$r.squared
+```
+
+We can see that all three linear models have similar y-intercepts and slopes. The y-intercept is highest for private non profit schools (64580.16), followed by public (66174.5) and for profit private(56020.96). The intercepts indicates that for schools with 0% of students coming from low-income families, students can expect an average salary of about that intercept. Additionally, the slopes in all three graphs are below 1, meaning that for every increase in the percentage of students from low income backgrounds, we can expect the mean earnings to decrease by (1-slope)*100 percent. This means that for any type of school, as the proportion of students from low income families increases by any amount, we can expect the mean earnings 10 years down the road to decrease substantially. 
+
+Interestingly, the r squared value of 0.466 for the model filtered for public schools means 46.6% of the variability in the log of mean earnings for public schools can be explained by the percentage of students who come from a low income family, which is something we would expect given the public school's wide distribution along the trend. The r squared of 0.353 for the model using non profit private schools means 35.3% of the variability of the log of mean earnings from non profit private schools can be explained by the percentage of low income students at the school. However, the r squared value for the model fitered for private for-profit schools is much lower, at 0.073. This indicates that only 7.3% of the variablity of the log of mean earnings can be explained by the percentage of low income students at the school. This could be due to the fact that many private for-profit institutions place more emphasis on online education, night classes, and part-time education. This could indicate that students of all backgrounds may be able to benefit much more equally from the education, without having to worry about the costs of living and taking classes on campus, for example. 
+
+2. Next, we plot the same graph as above, except now the explanatory variable is the percentage of middle income students at the various schools for mean earnings 10 years after enrollment.
+```{r}
+ggplot(data = scorecard, aes(x = middle_income, y = log(mean_earnings10), color = factor(CONTROL)))+
+  geom_point(position = "jitter", alpha = 0.5)
+
+```
+The above plot shows us a couple interesting things also. First, the data are more clustered together horizontally, suggesting that generally colleges have similar percentages of students from middle income families. The plot also shows a divide between private for-profit and private non-profit in terms of the log of mean earnings. The non-profit private schools are clustered more on the top, where as the for-profit private schools are clustered more on the bottom, with the public schools generally in the middle, but more spread out vertically. 
+
+Here is a linear model that does not take into account the types of schools because there is no clear trend in each school that would make a model meaningful, however here is the trend in general as the percentage of students from middle income families increases.
+```{r}
+earnings_middle <- lm(log(mean_earnings10) ~ middle_income, data = scorecard)
+exp(earnings_middle$coefficients)
+summary(earnings_middle)$r.squared
+```
+
+The intercept of 24833.39 represents the average of mean earnings from a school that does not have any students from that bracket, and the slope of 22.999 means that an increase of just one percent of students from middle income backgrounds will increase earnings by a factor of about 23, which is sizeable. This is the highest coefficient we see throughout the analysis. The r squared value of 0.215 means 21.5% of the variability in the log of mean earnings can be described by the percentage of students from middle income families.
+
+3. Lastly, we use the same plot again, but change the explanatory variable to the percentage of students from high income families. 
+```{r}
+ggplot(data = scorecard, aes(x = high_income, y = log(mean_earnings10), color = factor(CONTROL)))+
+  geom_point(position = "jitter", alpha = 0.5)+
+  stat_smooth(method = 'lm')
+```
+The above plot demonstrates not only that private for-profit colleges have a smaller percentage of students from families with high incomes (which we would expect based on the first plot), but also that private non-profit schools have a wide range of percentages of students from high income families. Generally speaking, as the proportion of students from high income families increases, public and private non profit schools tend to produce the highest earnings.
+
+Here is the linear model of the above plot for public schools:
+```{r}
+public_nonprofit <- scorecard %>%
+  filter(CONTROL==1)
+model1 <- lm(log(mean_earnings10) ~ high_income, data = public_nonprofit)
+exp(model1$coefficients)
+summary(model1)$r.squared
+```
+
+Here is the linear model for private non-profit schools:
+```{r}
+private_nonprofit <- scorecard %>%
+  filter(CONTROL == 2)
+model2 <- lm(log(mean_earnings10) ~ high_income, data = private_nonprofit)
+exp(model2$coefficients)
+summary(model2)$r.squared
+```
+
+Here is the linear model for private for-profit schools:
+```{r}
+private_forprofit <- scorecard %>%
+  filter(CONTROL == 3)
+model3 <- lm(log(mean_earnings10) ~ high_income, data = private_forprofit)
+exp(model3$coefficients)
+summary(model3)$r.squared
+```
+
+As we can see from the above models, for all three types of schools, there is a positive slope greater than 1, meaning that for every increase in the the percentage of high income students, we expect mean earnings from that school to increase by a factor of the coefficient.
+
+The intercepts here represent the mean income for the three schools if their percentage of high income students is zero. From the graph, it seems like there is decent number of colleges that don't have any students from a high income family, so the intercept is meaningful. The highest intercept is from private non profit schools (34214.919), followed by public (31339.19) and for profit private schools (27894.132). 
+
+In terms of the coefficients, the factor increase is greatest for public schools (10.037) and least for private non-profit schools (4.954). Thus, as the percentage of students from high income backgrounds increases, the greatest increase in mean earnings is expected to come from public schools. The difference is least pronounced in private non-profits, with a coefficient of 4.954, but the intercept there is the highest. In other words, in private non profit schools, the mean earnings 10 years after enrollment with no students from high income families is highest among the types of schools, but the rate of change in earnings as the percent of students from a high income family increases is the least among the three types of schools. 
+
+Similarly, although public schools have a lower intercept, as the percentage of students from high income families increases, the mean earnings 10 years after enrollment is expected to increase by a factor of 10.037, which is the highest.
+
+The r squared values for this graph are very similar to the first graph. 0.455 for public schools, 0.350 for non profit private schools, and 0.0296 for private for profit schools. Therefore, the log of mean earnings from public and non profit private schools more closely correlate to changes in the percentages of students from low and high income backgrounds. However, it should be noted that correlation does not imply causation.
+
+Here is a plot of the log of the mean earnings against the cost of the school.
+```{r}
+ggplot(data = scorecard, aes(x = cost, y = log(mean_earnings10), color = factor(CONTROL)))+
+  geom_point(position = "jitter", alpha = 0.5)+
+  stat_smooth(method = "lm")
+```
+This plot demonstrates the relative cost of each type of school compared to the other, and the earnings expected from those schools. Clearly, private non profit schools cost the most and also have the highest potential earnings. Public schools cost the least, but still can produce the same, if not more earnings that private for profit and private non profit in some cases.
+
+###Creating a linear model
+
+We first create a linear model using the backwards selection method, initially starting with all the variables used above.
+
+```{r}
+full <- lm(log(mean_earnings10) ~ low_income*middle_income + middle_income*high_income + low_income*high_income + cost + factor(CONTROL)*low_income + factor(CONTROL)*middle_income + factor(CONTROL)*high_income, data = scorecard)
+```
+
+The step function models the backward selection most efficiently. Here is the final model, adjusted R squared value, and exponentiated coefficients to account for using the log of the mean earnings in the model.
+
+```{r}
+final <- step(full, direction = "backward")
+final
+summary(final)$adj.r.squared
+exp(final$coefficients)
+```
+
+The intercept of 100,852.8 can be interpreted as the mean earnings 10 years after enrollment when a school has 0 aided students from a low income family, 0 from a middle income family, 0 from a high income family, 0 cost, and is a public school. Therefore, the intercept is not very meaningful because that situation would likely never occur. The adjusted R squared value of 0.465 means 46.5% of the variability of the log of mean earnings can be explained by the model.
+
+One prediction we can get from the model is that, all other variables held constant, as the percentage of students from low income families increases at a private non profit school, we can expect the rate of increase in mean earnings to be higher than if the percentage of students from low income families at a private for profit school increased, because the coefficient of the interaction between low income and private non profit is not only above 1 (1.73), but also much, much greater than the coefficient of the interaction between low income and private for profit, which is 0.0426. These are also relative to public schools, so the earnings will increase by that factor compared to public schools. Therefore, we expect the greatest rate of increase in earnings to come from private, non profit schools.
+
+Along the same lines, all other variables held constant, as the percentage of students from middle income families increases at a private non profit school, we can expect a greater increase in the mean earnings than if the percentage of students from middle income families at a private for profit school increased because the coefficient of the interaction between middle income and private non profit is 7.28, which is substantially greater than the coefficient of the interaction between middle income and private for profit, which is 0.00175.
+
+The same logic above applies for the high income bracket.
+
+#Testing the Model
+
+Let's test the model by partitioning the data into a training and a testing set. Here are the sample training indices.
+```{r}
+set.seed(1231997)
+scorecard_woNA <- scorecard %>%
+  filter(!is.na(mean_earnings10))%>%
+  filter(!is.na(low_income))%>%
+  filter(!is.na(middle_income))%>%
+  filter(!is.na(high_income))%>%
+  filter(!is.na(cost))%>%
+  filter(!is.na(CONTROL))
+n <- nrow(scorecard_woNA)
+training_index <- sample(1:n, size = n * 0.80, replace = FALSE)
+```
+
+Here are the sample training data and testing data.
+```{r}
+training_data <- scorecard_woNA %>%
+  slice(training_index)
+nrow(training_data)
+testing_data <- scorecard_woNA %>%
+  slice(-training_index)
+nrow(testing_data)
+```
+
+Now, we create the same model above, but with the training data.
+```{r}
+full_test <- lm(log(mean_earnings10) ~ low_income*middle_income + middle_income*high_income + low_income*high_income + cost + factor(CONTROL), data = training_data)
+```
+
+Use the step function to perform the same backwards analysis on this data set and model. 
+```{r}
+final_test <- step(full_test, direction = "backward")
+final_test
+```
+
+Predict the outcome. 
+```{r}
+log_mean_earnings <- predict(final_test, newdata = testing_data)
+pred_earnings <- exp(log_mean_earnings)
+```
+
+Calculate RMSE.
+```{r}
+n <- nrow(testing_data)
+rmse <- sqrt(sum((pred_earnings-testing_data$mean_earnings10)^2)/n)
+rmse
+```
+
+This RMSE may seem high, but when the unit of the variable we are trying to predict is taken into account (mean earnings 10 years after enrollment), it seems reasonable, so the model is valid.
+
+###Putting it all together
+We expect the most increase in earnings potential to come from private non-profit schools that have more middle income students, based on both the graphs and the full model. This makes sense because the middle class of America has to work everyday to make a living, and they most likely have taught that same mindset to their children. As a corollary, when middle class students get higher education, especially from private non-profit schools, their earnings potential is expected to increase more than a student from a higher socioeconomic background, who might not have had to work as hard to get things they wanted.
+
+Based on the models for the graphs and the full model, generally speaking, the income inequality in America has been preserved by a couple factors. First, as the percentage of students from a middle or high income family increases at public and non profit private schools, they can expect to earn more money 10 years after enrollment than from schools where the percentage of students from a low income family increases. More specifically, we predict that students at a private non profit school will make the most money, followed by a public school. Because for profit private schools tend to have the highest percentage of students from low income families, those students' earnings are affected. This might be explained by several factors. One is that private non profit schools are independent of the government for funding, so the alumni and organizations who donate money back can provide more money than the government can. As a result, private schools have more resources for students to get the most academic benefit possible, which is then seen by employers. This is just one possible explanation of the trends in the data. 
+
+The fact that private non profit schools also tend to cost the most money increases the inertia of income inequality. Excepting for full scholarships or full aid packages, typically only the middle and upper classes are able to pay for that kind of education, even with some sort of financial aid, and the data suggest that the higher percentage of students from middle and upper class, the more earnings from that school. Therefore, the upper and middle class are exposed to schools that can get them the most money, which further re-enforces income inequality.
+
+It should be noted that rising income inequality in America is a complex, multifaceted issue. The factors explained above are only a small portion of many factors that contribute to this problem.
